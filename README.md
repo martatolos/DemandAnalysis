@@ -1,4 +1,4 @@
 DemandAnalysis
 ==============
 
-Demand Analysis for europen countries
+Demand Analysis for european countries
