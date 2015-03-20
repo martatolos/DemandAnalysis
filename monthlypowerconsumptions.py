@@ -140,15 +140,26 @@ class MonthlyPowerConsumptions(object):
         # return the dataframe
         return df
 
-    def get_yearly_consumption_countries(self, country_list):
+    def get_yearly_consumption_countries(self, country_list, normalized=False, year=""):
         """
         This function gets the yearly consumption from the list of countries given
         @param countries: list of countries example ['ES','PT']
+        @param normalized: True if normalized data
+        @para year: default "" all years, if year set, then from this year on
         @return: data frame with the countries yearly consumption. Ex: [year, ES, PT]
         """
-        df = self.select_countries_data(country_list)
 
-        df = df.pivot(index='year', columns='country', values='Sum')
+        if normalized==True:
+            df = self.data_normalization(year=True, country_list=country_list)
+            df = pd.DataFrame(df.unstack(), columns=['Sum']).reset_index()
+            df = df.pivot(index='year', columns='country', values='Sum')
+
+        else:
+            df = self.select_countries_data(country_list)
+            df = df.pivot(index='year', columns='country', values='Sum')
+
+        # select the years
+        df = df[df.index>= year]
 
         return df
 
@@ -175,8 +186,9 @@ class MonthlyPowerConsumptions(object):
         """
         df = self.arrange_months_names()
 
-        # Select values only for this country
-        df = df[df.country.isin(country_list)]
+        if country_list != '':
+            # Select values only for this country
+            df = df[df.country.isin(country_list)]
 
         # return the dataframe
         return df
@@ -200,17 +212,79 @@ class MonthlyPowerConsumptions(object):
         # return the dataframe
         return df
 
-    def mean_monthly_data(self):
+    def data_normalization(self, year=True, how='mean', country_list=''):
         """
-        This function computes average monthly values
-        @param none:
-        @return: data frame with the arrange monthly data
+        This function normalized the data based on the "how" given
+        @param how: mean, max, value (another information given by country in a dictionary)
+        @param year: True or False (year or not, then month data, default year data)
+        @param country_list: List of countries to select if different from ''
+        @return: data frame with normalized data
         """
+        df = self.select_countries_data(country_list=country_list)
 
-        df = self.transform_monthly_data()
+        if how == 'mean':
 
-        # Compute monthly average
-        df = df.mean(axis=1)
+            if year==True:
+
+                # Normalize year data base on mean value for all the years for each country
+                df_year = df.pivot(index='country', columns='year', values='Sum')
+                df_year_means = df_year.mean(axis=1)
+                df_year = df_year.div(df_year_means, axis='index')
+                df = df_year
+
+            else:
+                # Normalize monthly data base on the yearly sum
+                df_month = df.copy()
+                df_month.loc[:,"Jan":"Dec"] = df_month.loc[:,"Jan":"Dec"].div(df_month['Sum'], axis=0)
+                df = df_month
+
+        else:
+            print "WARNING: Don't know how to do this normalization... returning the dataframe as it is...\n"
 
         # return the dataframe
         return df
+
+def data_normalization(self, year=True, how='mean', country_list=''):
+        """
+        This function normalized the data based on the "how" given
+        @param how: mean, max, value (another information given by country in a dictionary)
+        @param year: True or False (year or not, then month data, default year data)
+        @param country_list: List of countries to select if different from ''
+        @return: data frame with normalized data
+        """
+        df = self.select_countries_data(country_list=country_list)
+
+        if how == 'mean':
+
+            if year==True:
+
+                # Normalize year data base on mean value for all the years for each country
+                df_year = df.pivot(index='country', columns='year', values='Sum')
+                df_year_means = df_year.mean(axis=1)
+                df_year = df_year.div(df_year_means, axis='index')
+                df = df_year
+
+            else:
+                # Normalize monthly data base on the yearly sum
+                df_month = df.copy()
+                df_month.loc[:,"Jan":"Dec"] = df_month.loc[:,"Jan":"Dec"].div(df_month['Sum'], axis=0)
+                df = df_month
+
+        else:
+            print "WARNING: Don't know how to do this normalization... returning the dataframe as it is...\n"
+
+        # return the dataframe
+        return df
+
+def get_monthly_consumption_countries(self, country_list, normalized=False):
+
+        if normalized==False:
+            df = self.select_countries_data(country_list=country_list)
+            df = df.loc[:,"Jan":"Dec"]
+
+        else:
+            df = self.data_normalization(year=False, how='mean', country_list=country_list)
+
+        return df
+
+
