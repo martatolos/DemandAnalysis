@@ -159,7 +159,8 @@ class MonthlyPowerConsumptions(object):
             df = df.pivot(index='year', columns='country', values='Sum')
 
         # select the years
-        df = df[df.index>= year]
+        if year != "":
+            df = df[df.index>= year]
 
         return df
 
