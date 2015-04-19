@@ -30,7 +30,7 @@ class MonthlyPowerConsumptions(object):
 
 
     # constructor
-    def __init__(self, dir_path, pattern, sheet='Statistics', skiprows=7,save=1):
+    def __init__(self, dir_path, pattern, sheet='Statistics', skiprows=7,save=True):
         """
         Constructor
         @param dir_path: The path where to search for the files
@@ -48,7 +48,7 @@ class MonthlyPowerConsumptions(object):
 
     # load data frame from files
     def load_dataframe(self, dir_path, pattern, sheet='Statistics',
-                       skiprows=7, save=1):
+                       skiprows=7, save=True):
         """
         This function parses monthly (1:12) consumption data from
         all countries and returns a Pandas DataFrame with the
@@ -100,7 +100,7 @@ class MonthlyPowerConsumptions(object):
         self.df = self.df.rename(columns=lambda x: re.sub('Country', 'country', str(x)))
 
         # save the data frame for latter use, to avoid reading all files again
-        if save == 1:
+        if save:
             self.df.to_pickle(os.path.join(dir_path, 'mconsum'))
 
     def arrange_months_names(self):
@@ -209,6 +209,7 @@ class MonthlyPowerConsumptions(object):
         df = df.T
         df = df.unstack()
         df.index.names = ['year', 'country', 'month']
+        df = pd.DataFrame(df, columns=['avg-demand'])
 
         # return the dataframe
         return df
@@ -245,47 +246,42 @@ class MonthlyPowerConsumptions(object):
         # return the dataframe
         return df
 
-def data_normalization(self, year=True, how='mean', country_list=''):
+    def get_monthly_consumption_countries(self, country_list, normalized=False):
+
         """
-        This function normalized the data based on the "how" given
-        @param how: mean, max, value (another information given by country in a dictionary)
-        @param year: True or False (year or not, then month data, default year data)
-        @param country_list: List of countries to select if different from ''
-        @return: data frame with normalized data
+        @param country_list: List of countries to select
+        @param normalized: True or false to have or not normalization
+        @return: data frame with the monthly consumption data
         """
-        df = self.select_countries_data(country_list=country_list)
-
-        if how == 'mean':
-
-            if year==True:
-
-                # Normalize year data base on mean value for all the years for each country
-                df_year = df.pivot(index='country', columns='year', values='Sum')
-                df_year_means = df_year.mean(axis=1)
-                df_year = df_year.div(df_year_means, axis='index')
-                df = df_year
-
-            else:
-                # Normalize monthly data base on the yearly sum
-                df_month = df.copy()
-                df_month.loc[:,"Jan":"Dec"] = df_month.loc[:,"Jan":"Dec"].div(df_month['Sum'], axis=0)
-                df = df_month
-
-        else:
-            print "WARNING: Don't know how to do this normalization... returning the dataframe as it is...\n"
-
-        # return the dataframe
-        return df
-
-def get_monthly_consumption_countries(self, country_list, normalized=False):
-
         if normalized==False:
             df = self.select_countries_data(country_list=country_list)
-            df = df.loc[:,"Jan":"Dec"]
 
         else:
             df = self.data_normalization(year=False, how='mean', country_list=country_list)
 
+        # remove annual sum
+        del df['Sum']
+
         return df
 
+    def get_average_monthly_data(self, year=''):
+        """
+        This function computes average monthly values
+        @param year: Select the year from which on the monthly average will be performed
+        @return: data frame with the average monthly data per country
+        """
 
+        df = self.transform_monthly_data()
+
+        # arrange index only for year
+        df = df.reset_index()
+        df = df.set_index('year')
+        # Select the minimum year for the average
+        if year != "":
+            df = df[df.index>= year]
+
+        # Compute monthly average per country
+        df = df.groupby(by=['country','month']).mean()
+
+        # return the dataframe
+        return df
